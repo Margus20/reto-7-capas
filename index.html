@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reto de 7 Capas</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Arial', sans-serif; }
+    body { background: #0a0a0a; color: #fff; min-height: 100vh; display: flex; justify-content: center; align-items: center; overflow-x: hidden; }
+    .capa { display: none; width: 90%; max-width: 500px; padding: 20px; text-align: center; animation: fadeIn 0.5s; }
+    .capa.activa { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+    h2 { margin-bottom: 20px; font-size: 1.8em; }
+    .pregunta { font-size: 1.3em; margin-bottom: 20px; line-height: 1.4; }
+    input { width: 100%; padding: 15px; font-size: 1.2em; border-radius: 10px; border: 2px solid #555; background: #222; color: #fff; text-align: center; margin-bottom: 15px; }
+    button { padding: 15px 30px; font-size: 1.2em; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; transition: transform 0.1s; }
+    button:active { transform: scale(0.95); }
+    .error { color: #ff4444; margin-top: 15px; font-weight: bold; display: none; }
+    
+    /* Estilos específicos por capa */
+    .terminal { background: #000; border: 2px solid #0f0; color: #0f0; font-family: 'Courier New', monospace; }
+    .terminal input { background: #000; color: #0f0; border-color: #0f0; }
+    .terminal button { background: #0f0; color: #000; }
+    
+    .caja-fuerte { background: #333; border: 5px solid #666; border-radius: 20px; }
+    .caja-fuerte input { background: #111; color: #0f0; font-family: 'Courier New', monospace; letter-spacing: 5px; }
+    .caja-fuerte button { background: #ffcc00; color: #000; }
+    
+    .maquina-escribir { background: #f4e4bc; color: #333; font-family: 'Georgia', serif; border-radius: 5px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+    .maquina-escribir input { background: #fff; color: #333; border: 1px solid #999; font-family: 'Courier New', monospace; }
+    .maquina-escribir button { background: #333; color: #f4e4bc; }
+    
+    .pizarra { background: #2b2b2b; border: 10px solid #8b4513; color: #fff; font-family: 'Comic Sans MS', cursive; }
+    .pizarra input { background: transparent; color: #fff; border-bottom: 2px solid #fff; border-radius: 0; }
+    .pizarra button { background: #fff; color: #2b2b2b; }
+    
+    .espacial { background: #000033; border: 2px solid #00ffff; box-shadow: 0 0 20px #00ffff; }
+    .espacial input { background: #000022; color: #00ffff; border-color: #00ffff; }
+    .espacial button { background: linear-gradient(45deg, #ff00ff, #00ffff); color: #fff; }
+    
+    .rueda { background: #1a1a1a; border: 3px dashed #ffcc00; }
+    .rueda input { background: #000; color: #ffcc00; border-color: #ffcc00; }
+    .rueda button { background: #ffcc00; color: #000; }
+    
+    .deslizable { background: #222; border-radius: 30px; }
+    .deslizable input { background: #444; color: #fff; border-radius: 20px; }
+    .deslizable button { background: #ff6600; color: #fff; border-radius: 20px; }
+
+    /* Criptex */
+    .criptex-container { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 20px 0; }
+    .rueda-criptex { display: flex; justify-content: center; gap: 5px; overflow-x: auto; padding: 10px; background: #333; border-radius: 10px; width: 100%; }
+    .rueda-item { width: 40px; height: 60px; background: #ddd; color: #000; display: flex; justify-content: center; align-items: center; font-size: 1.5em; font-weight: bold; border-radius: 5px; cursor: pointer; user-select: none; }
+    .rueda-item.seleccionada { background: #ffcc00; transform: scale(1.1); }
+    .opciones-rueda { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
+    .opcion-btn { padding: 10px; background: #555; color: #fff; border-radius: 5px; cursor: pointer; }
+    .opcion-btn:hover { background: #777; }
+    .criptex button { background: #ff0066; color: #fff; margin-top: 20px; }
+
+    /* Sorpresa y Fallo */
+    .sorpresa-final { display: none; text-align: center; }
+    .sorpresa-final h1 { font-size: 2.5em; background: linear-gradient(45deg, #ff00ff, #00ffff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: rebote 1s infinite; }
+    @keyframes rebote { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+    .fallo-final { display: none; text-align: center; color: #ff4444; }
+</style>
+</head>
+<body>
+
+<div id="juego">
+    <div id="capa-contenedor" class="capa activa">
+        <h2 id="titulo-capa">Capa 1</h2>
+        <p id="texto-pregunta" class="pregunta"></p>
+        <input type="text" id="input-respuesta" placeholder="Escribe tu respuesta...">
+        <br>
+        <button onclick="verificarRespuesta()">ENVIAR</button>
+        <p id="mensaje-error" class="error">❌ Incorrecto. Volviendo al inicio...</p>
+    </div>
+
+    <div id="criptex-contenedor" class="capa">
+        <h2>El Criptex Final</h2>
+        <p class="pregunta">Alinea las ruedas para revelar el secreto.</p>
+        <div class="criptex-container">
+            <div id="ruedas-display" class="rueda-criptex"></div>
+            <div id="opciones-crip" class="opciones-rueda"></div>
+        </div>
+        <button onclick="verificarCriptex()">ABRIR CRIPTEX</button>
+        <p id="error-criptex" class="error">❌ El cilindro no se abre. Intenta de nuevo.</p>
+    </div>
+</div>
+
+<div id="sorpresa-final" class="sorpresa-final">
+    <h1>¡¡FELIZ CUMPLEAÑOS EVELYN!!</h1>
+    <p style="font-size: 1.5em; margin: 20px 0;">🎉 ¡Lo lograste! 🎉</p>
+    <p>Que este día esté lleno de magia y alegría.</p>
+    <p style="margin-top: 30px; color: #ffcc00;">Con amor, Marcos Gustavo ❤️</p>
+</div>
+
+<div id="fallo-final" class="fallo-final">
+    <h1>🐱 ¡Miau! 🐱</h1>
+    <p style="font-size: 1.5em;">Ese no era el código secreto.</p>
+    <p>El gato guardián te bloqueó el paso.</p>
+</div>
+
+<script>
+    // Banco de preguntas (Muestra representativa, el sistema rota aleatoriamente)
+    const bancoPreguntas = [
+        {q: "¿Qué elemento químico tiene el símbolo 'W'?", a: ["wolframio", "tungsteno"]},
+        {q: "¿En qué año cayó el Muro de Berlín?", a: ["1989"]},
+        {q: "¿Quién escribió 'Cien años de soledad'?", a: ["garcia marquez", "garcía márquez"]},
+        {q: "¿Cuál es el país más pequeño del mundo?", a: ["vaticano"]},
+        {q: "¿Quién pintó 'La noche estrellada'?", a: ["van gogh"]},
+        {q: "¿Cuánto vale Pi con dos decimales?", a: ["3.14"]},
+        {q: "¿Quién compuso la 'Novena Sinfonía'?", a: ["beethoven"]},
+        {q: "¿Cuál es el planeta más grande del sistema solar?", a: ["jupiter", "júpiter"]},
+        {q: "¿En qué continente está Egipto?", a: ["africa", "áfrica"]},
+        {q: "¿Cuántos huesos tiene el cuerpo humano adulto?", a: ["206"]},
+        {q: "¿Quién descubrió la penicilina?", a: ["fleming", "alexander fleming"]},
+        {q: "¿Cuál es el río más largo del mundo?", a: ["amazonas", "nilo"]},
+        {q: "¿Qué gas respiramos principalmente del aire?", a: ["nitrogeno", "nitrógeno"]},
+        {q: "¿Quién fue el primer hombre en la Luna?", a: ["neil armstrong", "armstrong"]},
+        {q: "¿Cuál es la capital de Australia?", a: ["canberra"]},
+        {q: "¿Cuántos lados tiene un hexágono?", a: ["6", "seis"]},
+        {q: "¿Qué animal es el más rápido del mundo?", a: ["guepardo", "chita"]},
+        {q: "¿En qué año llegó el hombre a la Luna?", a: ["1969"]},
+        {q: "¿Quién pintó la Mona Lisa?", a: ["da vinci", "leonardo"]},
+        {q: "¿Cuál es el océano más grande?", a: ["pacifico", "pacífico"]},
+        {q: "¿Qué instrumento mide la temperatura?", a: ["termometro", "termómetro"]},
+        {q: "¿Cuántos colores tiene el arcoíris?", a: ["7", "siete"]},
+        {q: "¿Quién escribió 'Romeo y Julieta'?", a: ["shakespeare"]},
+        {q: "¿Cuál es la montaña más alta del mundo?", a: ["everest"]},
+        {q: "¿Qué país tiene forma de bota?", a: ["italia"]},
+        {q: "¿Cuántos minutos tiene una hora?", a: ["60", "sesenta"]},
+        {q: "¿Qué idioma se habla en Brasil?", a: ["portugues", "portugués"]},
+        {q: "¿Cuál es el metal más abundante en la corteza terrestre?", a: ["aluminio"]},
+        {q: "¿Quién fue el primer presidente de los Estados Unidos?", a: ["washington", "george washington"]},
+        {q: "¿Qué órgano bombea la sangre?", a: ["corazon", "corazón"]}
+    ];
+
+    let capaActual = 1;
+    let preguntasSeleccionadas = [];
+    let palabraCriptex = [];
+    const letrasCriptex = "ABCDEFGHIJKLMNOPQRSTUVWXYZ🐩🐱🐹🐰🐠🦜".split("");
+
+    function iniciarJuego() {
+        capaActual = 1;
+        preguntasSeleccionadas = [];
+        for(let i=0; i<7; i++) {
+            let rand = Math.floor(Math.random() * bancoPreguntas.length);
+            preguntasSeleccionadas.push(bancoPreguntas[rand]);
+        }
+        mostrarCapa();
+    }
+
+    function mostrarCapa() {
+        document.getElementById('capa-contenedor').className = 'capa activa';
+        document.getElementById('criptex-contenedor').className = 'capa';
+        document.getElementById('sorpresa-final').style.display = 'none';
+        document.getElementById('fallo-final').style.display = 'none';
+        document.getElementById('mensaje-error').style.display = 'none';
+        
+        // Cambiar estilo visual
+        const estilos = ['terminal', 'caja-fuerte', 'maquina-escribir', 'pizarra', 'espacial', 'rueda', 'deslizable'];
+        const cont = document.getElementById('capa-contenedor');
+        cont.className = 'capa activa ' + estilos[capaActual - 1];
+        
+        document.getElementById('titulo-capa').innerText = 'Capa ' + capaActual;
+        document.getElementById('texto-pregunta').innerText = preguntasSeleccionadas[capaActual - 1].q;
+        document.getElementById('input-respuesta').value = '';
+    }
+
+    function verificarRespuesta() {
+        let resp = document.getElementById('input-respuesta').value.toLowerCase().trim();
+        let correctas = preguntasSeleccionadas[capaActual - 1].a;
+        
+        if (correctas.some(a => resp.includes(a))) {
+            capaActual++;
+            if (capaActual > 7) {
+                iniciarCriptex();
+            } else {
+                mostrarCapa();
+            }
+        } else {
+            document.getElementById('mensaje-error').style.display = 'block';
+            setTimeout(() => { iniciarJuego(); }, 2000);
+        }
+    }
+
+    function iniciarCriptex() {
+        document.getElementById('capa-contenedor').className = 'capa';
+        document.getElementById('criptex-contenedor').className = 'capa activa';
+        palabraCriptex = ['?', '?', '?', '?', '?', '?', '?'];
+        renderizarCriptex();
+    }
+
+    function renderizarCriptex() {
+        const display = document.getElementById('ruedas-display');
+        display.innerHTML = '';
+        palabraCriptex.forEach((letra, idx) => {
+            let div = document.createElement('div');
+            div.className = 'rueda-item ' + (letra !== '?' ? 'seleccionada' : '');
+            div.innerText = letra;
+            div.onclick = () => seleccionarPosicion(idx);
+            display.appendChild(div);
+        });
+
+        const opciones = document.getElementById('opciones-crip');
+        opciones.innerHTML = '';
+        letrasCriptex.forEach(l => {
+            let btn = document.createElement('div');
+            btn.className = 'opcion-btn';
+            btn.innerText = l;
+            btn.onclick = () => asignarLetra(l);
+            opciones.appendChild(btn);
+        });
+    }
+
+    let posSeleccionada = 0;
+    function seleccionarPosicion(idx) {
+        posSeleccionada = idx;
+        document.querySelectorAll('.rueda-item').forEach((el, i) => {
+            el.style.border = i === idx ? '2px solid #ff00ff' : 'none';
+        });
+    }
+
+    function asignarLetra(l) {
+        palabraCriptex[posSeleccionada] = l;
+        renderizarCriptex();
+    }
+
+    function verificarCriptex() {
+        let palabra = palabraCriptex.join('');
+        if (palabra === 'EVELYN🐩') {
+            document.getElementById('criptex-contenedor').className = 'capa';
+            document.getElementById('sorpresa-final').style.display = 'block';
+            lanzarConfeti();
+        } else {
+            document.getElementById('error-criptex').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('criptex-contenedor').className = 'capa';
+                document.getElementById('fallo-final').style.display = 'block';
+            }, 1500);
+        }
+    }
+
+    function lanzarConfeti() {
+        // Efecto visual simple
+        document.body.style.background = 'linear-gradient(45deg, #ff00ff, #00ffff)';
+    }
+
+    // Iniciar al cargar
+    window.onload = iniciarJuego;
+</script>
+</body>
+</html>
